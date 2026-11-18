@@ -43,6 +43,9 @@ jobs:
         run: node scripts/sync.mjs
         env:
           PREVIOUS_URL: ${{ steps.pages.outputs.base_url }}/program.json
+          # QM2025 (1334113) until the QM2027 timetable (1622375) is on Indico; the site marks
+          # it as a preview. Switching starts a fresh snapshot, since the event id differs.
+          EVENT_ID: "1334113"
 
       - id: decide
         env:

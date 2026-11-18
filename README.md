@@ -8,6 +8,10 @@ The visitor guide ([QM2027/qm2027.github.io](https://github.com/QM2027/qm2027.gi
 it in the browser, so program updates reach the site without rebuilding it. Indico stays the
 source of truth. This repository only reshapes the Indico data and applies urgent corrections.
 
+> **For now this publishes QM2025 (Indico event 1334113)**, so the site can be tested with real
+> data. The site labels it as a preview. When the QM2027 timetable is on Indico, change
+> `EVENT_ID` in `.github/workflows/publish.yml` to `1622375`.
+
 ## How it works
 
 `.github/workflows/publish.yml` runs `scripts/sync.mjs` and deploys `site/program.json` to
