@@ -52,9 +52,10 @@ jobs:
         env:
           PREVIOUS_URL: ${{ steps.pages.outputs.base_url }}
           FORCE: ${{ inputs.force || false }}
-          # QM2025 (1334113) until the QM2027 timetable (1622375) is on Indico; the site marks
-          # it as a preview. Switching starts a fresh snapshot, since the event id differs.
-          EVENT_ID: "1334113"
+          # Settings → Secrets and variables → Actions → Variables → EVENT_ID. Unset means QM2027
+          # (1622375). Set 1334113 to publish QM2025 for testing; the site labels any other event
+          # as a preview. Changing it starts a fresh snapshot, since the event id differs.
+          EVENT_ID: ${{ vars.EVENT_ID || '1622375' }}
 
       - id: decide
         env:

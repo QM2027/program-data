@@ -9,9 +9,18 @@ these files in the browser, so program updates reach the site without rebuilding
 stays the source of truth. This repository only reshapes the Indico data and applies urgent
 corrections.
 
-> **For now this publishes QM2025 (Indico event 1334113)**, so the site can be tested with real
-> data. The site labels it as a preview. When the QM2027 timetable is on Indico, change
-> `EVENT_ID` in `.github/workflows/publish.yml` to `1622375`.
+## Which event
+
+The repository variable **`EVENT_ID`** chooses the Indico event. Set it under **Settings →
+Secrets and variables → Actions → Variables**, then run the workflow.
+
+| `EVENT_ID` | Publishes |
+| --- | --- |
+| unset or `1622375` | QM2027 |
+| `1334113` | QM2025, to test the site with real data. The site labels it as a preview. |
+
+Changing the event starts a fresh snapshot. The change history of the other event is not
+carried over.
 
 ## Files
 
