@@ -1,0 +1,4 @@
+# Built by scripts/sync.mjs and deployed to Pages; never committed.
+/site/
+node_modules/
+.DS_Store

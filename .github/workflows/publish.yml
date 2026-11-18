@@ -1,0 +1,73 @@
+name: Publish program data
+
+# Fetches the program from Indico and deploys it to GitHub Pages as
+# https://qm2027.github.io/program-data/program.json. Nothing is committed.
+#
+#   push / manual run  → always publish (use "Run workflow" right after editing the timetable)
+#   schedule           → publish only if program.json would change
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */6 * * *"       # every 6 hours
+    - cron: "*/5 * 15-28 3 *"    # every 5 minutes around the conference (15–28 March)
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Don't cancel: a run with nothing new must not cancel one that is publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      # The published program.json is the previous snapshot: it carries the change history
+      # and is kept as-is if Indico can't be reached.
+      - id: sync
+        run: node scripts/sync.mjs
+        env:
+          PREVIOUS_URL: ${{ steps.pages.outputs.base_url }}/program.json
+
+      - id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          CHANGED: ${{ steps.sync.outputs.changed }}
+        run: |
+          if [ "$EVENT" = schedule ] && [ "$CHANGED" != true ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Program unchanged. Nothing to publish."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.decide.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
