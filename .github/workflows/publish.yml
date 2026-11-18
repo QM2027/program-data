@@ -1,14 +1,20 @@
 name: Publish program data
 
-# Fetches the program from Indico and deploys it to GitHub Pages as
-# https://qm2027.github.io/program-data/program.json. Nothing is committed.
+# Fetches the program from Indico and deploys it to GitHub Pages under
+# https://qm2027.github.io/program-data/ (start at index.json). Nothing is committed.
 #
 #   push / manual run  → always publish (use "Run workflow" right after editing the timetable)
-#   schedule           → publish only if program.json would change
+#   schedule           → publish if the program changed, or hourly to refresh checkedAt
+# A sudden large drop in contributions is never published; a manual run with "force" overrides it.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: Publish even if the program shrank a lot
+        type: boolean
+        default: false
   schedule:
     - cron: "23 */6 * * *"       # every 6 hours
     - cron: "*/5 * 15-28 3 *"    # every 5 minutes around the conference (15–28 March)
@@ -37,12 +43,15 @@ jobs:
       - id: pages
         uses: actions/configure-pages@v5
 
-      # The published program.json is the previous snapshot: it carries the change history
-      # and is kept as-is if Indico can't be reached.
+      - run: node --test
+
+      # The published snapshot is the previous one: it carries the change history and is kept
+      # as-is if Indico can't be reached.
       - id: sync
         run: node scripts/sync.mjs
         env:
-          PREVIOUS_URL: ${{ steps.pages.outputs.base_url }}/program.json
+          PREVIOUS_URL: ${{ steps.pages.outputs.base_url }}
+          FORCE: ${{ inputs.force || false }}
           # QM2025 (1334113) until the QM2027 timetable (1622375) is on Indico; the site marks
           # it as a preview. Switching starts a fresh snapshot, since the event id differs.
           EVENT_ID: "1334113"
@@ -50,11 +59,11 @@ jobs:
       - id: decide
         env:
           EVENT: ${{ github.event_name }}
-          CHANGED: ${{ steps.sync.outputs.changed }}
+          SYNC_PUBLISH: ${{ steps.sync.outputs.publish }}
         run: |
-          if [ "$EVENT" = schedule ] && [ "$CHANGED" != true ]; then
+          if [ "$EVENT" = schedule ] && [ "$SYNC_PUBLISH" != true ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "Program unchanged. Nothing to publish."
+            echo "Nothing new to publish."
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
