@@ -244,9 +244,10 @@ function kindOf(a) {
 }
 
 /**
- * Public attachments as direct links: { title, url, kind, size? }. Protected ones are left out,
- * since the link would only show a login page. A file uploaded twice under the same name
- * keeps its latest version.
+ * Public attachments as direct links: { title, url, kind, size?, modified? }. Protected ones are
+ * left out, since the link would only show a login page. A file uploaded twice under the same
+ * name keeps its latest version. `modified` (Indico's modified_dt) lets the site mark files that
+ * changed since a visitor last looked.
  */
 export function materialsOf(ev) {
   const byTitle = new Map();
@@ -258,11 +259,17 @@ export function materialsOf(ev) {
       if (!url) continue;
       const title = a.title || a.filename || "Attachment";
       const old = byTitle.get(title);
-      if (old && (old.modified ?? "") > (a.modified_dt ?? "")) continue;
-      byTitle.set(title, { title, url, kind: kindOf(a), size: a.type === "link" ? undefined : a.size || undefined, modified: a.modified_dt });
+      if (old && (old.modified ?? "") > (a.modified_dt ? a.modified_dt.slice(0, 19) + "Z" : "")) continue;
+      byTitle.set(title, {
+        title,
+        url,
+        kind: kindOf(a),
+        size: a.type === "link" ? undefined : a.size || undefined,
+        modified: a.modified_dt ? a.modified_dt.slice(0, 19) + "Z" : undefined,
+      });
     }
   }
-  return [...byTitle.values()].map(({ modified, ...m }) => m);
+  return [...byTitle.values()];
 }
 
 /** Shallow per-id patches: { "sessions": { "<id>": {...} }, "contributions": { "<id>": {...} } }. */

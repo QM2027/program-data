@@ -29,7 +29,7 @@ carried over.
 | `index.json` | `schema`, `eventId`, `tz`, `syncedAt` (last change), `checkedAt` (last successful check), counts, and the names of the two files below. The only file clients poll. | < 1 KB |
 | `program.<hash>.json` | `sessions`, `contributions` (talks and posters), `unscheduled`, `breaks`, `tracks`, `changes` | 60 KB |
 | `abstracts.<hash>.json` | `{ "<id>": { abstract, authors } }`. `authors` lists the authors who aren't speakers. | 317 KB |
-| `materials.<hash>.json` | `{ "<id>": [{ title, url, kind, size }] }`: direct links to the public slides and posters on Indico. `kind` is `pdf`, `slides`, `video`, `image`, `link` or `file`. | 26 KB |
+| `materials.<hash>.json` | `{ "<id>": [{ title, url, kind, size, modified }] }`: direct links to the public slides and posters on Indico. `kind` is `pdf`, `slides`, `video`, `image`, `link` or `file`. | 26 KB |
 
 - **Hashed files** never change, so clients can cache them for good. The previous version's
   files stay published next to the new ones.

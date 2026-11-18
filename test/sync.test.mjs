@@ -135,9 +135,9 @@ test("materials: public direct links, latest of a re-upload, links and protected
     ],
   };
   assert.deepEqual(materialsOf(ev), [
-    { title: "poster.pdf", url: "https://indico.cern.ch/a/2/poster.pdf", kind: "pdf", size: 2000 },
-    { title: "slides.pptx", url: "https://indico.cern.ch/a/3/slides.pptx", kind: "slides", size: 1000 },
-    { title: "Google slides", url: "https://docs.google.com/x", kind: "link", size: undefined },
+    { title: "poster.pdf", url: "https://indico.cern.ch/a/2/poster.pdf", kind: "pdf", size: 2000, modified: "2027-03-21T10:00:00Z" },
+    { title: "slides.pptx", url: "https://indico.cern.ch/a/3/slides.pptx", kind: "slides", size: 1000, modified: undefined },
+    { title: "Google slides", url: "https://docs.google.com/x", kind: "link", size: undefined, modified: undefined },
   ]);
   assert.deepEqual(materialsOf(undefined), []);
 
