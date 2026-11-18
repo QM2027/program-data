@@ -10,6 +10,8 @@
 //   program.<hash>.json        sessions, contributions (talks and posters), unscheduled, breaks,
 //                              tracks, changes
 //   abstracts.<hash>.json      { id: { abstract, authors } }, loaded after the program
+//   materials.<hash>.json      { id: [{ title, url, kind, size }] }: direct links to the slides and
+//                              posters on Indico. Separate because uploads continue all week.
 // Hashed files never change, so clients can cache them for good. The previous version's files
 // are published too, so a client holding the old index.json doesn't hit a 404 mid-deploy.
 //
@@ -60,8 +62,9 @@ async function loadPrevious() {
       console.log(`sync: published snapshot is for event ${index.eventId}, schema ${index.schema}; starting fresh`);
       return undefined;
     }
-    const [core, abstracts] = await Promise.all([read(index.program), read(index.abstracts)]);
-    return { index, core, abstracts, files: { [index.program]: core, [index.abstracts]: abstracts } };
+    const [core, abstracts, materials] = await Promise.all([read(index.program), read(index.abstracts), index.materials ? read(index.materials) : {}]);
+    const files = { [index.program]: core, [index.abstracts]: abstracts, ...(index.materials ? { [index.materials]: materials } : {}) };
+    return { index, core, abstracts, materials, files };
   } catch (e) {
     console.log(`sync: no previous snapshot (${e.message}); starting fresh`);
     return undefined;
@@ -121,11 +124,12 @@ async function main() {
     warn(`could not build the program (${e.message}); keeping the published program`);
     return keepPublished();
   }
-  const { program, abstracts } = built;
+  const { program, abstracts, materials } = built;
   const posters = program.contributions.filter((c) => c.poster).length;
   console.log(
     `sync: event ${EVENT_ID} (${indico.tz}): ${program.sessions.length} sessions, ${program.contributions.length - posters} talks, ` +
-      `${posters} posters, ${program.unscheduled.length} unscheduled, ${program.tracks.length} tracks`,
+      `${posters} posters, ${program.unscheduled.length} unscheduled, ${program.tracks.length} tracks, ` +
+      `${Object.values(materials).flat().length} attachments`,
   );
 
   const shrink = shrinkReason(previous?.core, program);
@@ -136,7 +140,8 @@ async function main() {
 
   const sameProgram = previous && contentKey(previous.core) === contentKey(program);
   const sameAbstracts = previous && JSON.stringify(previous.abstracts) === JSON.stringify(abstracts);
-  if (sameProgram && sameAbstracts) {
+  const sameMaterials = previous && JSON.stringify(previous.materials) === JSON.stringify(materials);
+  if (sameProgram && sameAbstracts && sameMaterials) {
     const stale = Date.now() - Date.parse(previous.index.checkedAt) > HEARTBEAT_MS;
     console.log(`sync: no changes${stale ? "; refreshing checkedAt" : ""}`);
     await writeSite({ ...previous.index, checkedAt: now }, previous.files);
@@ -145,21 +150,29 @@ async function main() {
 
   const sessionsById = new Map(program.sessions.map((s) => [s.id, s]));
   const fresh = previous && !sameProgram ? diffPrograms(previous.core, program, now, sessionsById) : [];
-  const core = { schema: SCHEMA, eventId: EVENT_ID, tz: indico.tz, syncedAt: now, ...program, changes: mergeChanges(fresh, previous?.core.changes) };
+  // The program file (and its syncedAt) only changes with the program: new abstracts or uploads
+  // alone don't make every client download it again.
+  const core = sameProgram
+    ? previous.core
+    : { schema: SCHEMA, eventId: EVENT_ID, tz: indico.tz, syncedAt: now, ...program, changes: mergeChanges(fresh, previous?.core.changes) };
   const coreJson = JSON.stringify(core);
   const absJson = JSON.stringify(abstracts);
+  const matJson = JSON.stringify(materials);
   const index = {
     schema: SCHEMA,
     eventId: EVENT_ID,
     tz: indico.tz,
-    syncedAt: now,
+    syncedAt: core.syncedAt,
     checkedAt: now,
     counts: { talks: program.contributions.length - posters, posters, unscheduled: program.unscheduled.length },
     program: hashName("program", coreJson),
     abstracts: hashName("abstracts", absJson),
+    materials: hashName("materials", matJson),
   };
-  await writeSite(index, { ...previous?.files, [index.program]: core, [index.abstracts]: abstracts });
-  console.log(`sync: wrote ${OUT}/ (${fresh.length} new changes; program ${coreJson.length} B, abstracts ${absJson.length} B)`);
+  await writeSite(index, { ...previous?.files, [index.program]: core, [index.abstracts]: abstracts, [index.materials]: materials });
+  console.log(
+    `sync: wrote ${OUT}/ (${fresh.length} new changes; program ${coreJson.length} B, abstracts ${absJson.length} B, materials ${matJson.length} B)`,
+  );
   return true;
 }
 
@@ -174,8 +187,9 @@ function emptySite(now) {
     counts: { talks: 0, posters: 0, unscheduled: 0 },
     program: hashName("program", JSON.stringify(core)),
     abstracts: hashName("abstracts", "{}"),
+    materials: hashName("materials", "{}"),
   };
-  return [index, { [index.program]: core, [index.abstracts]: {} }];
+  return [index, { [index.program]: core, [index.abstracts]: {}, [index.materials]: {} }];
 }
 
 const publish = await main();

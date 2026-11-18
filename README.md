@@ -29,9 +29,17 @@ carried over.
 | `index.json` | `schema`, `eventId`, `tz`, `syncedAt` (last change), `checkedAt` (last successful check), counts, and the names of the two files below. The only file clients poll. | < 1 KB |
 | `program.<hash>.json` | `sessions`, `contributions` (talks and posters), `unscheduled`, `breaks`, `tracks`, `changes` | 60 KB |
 | `abstracts.<hash>.json` | `{ "<id>": { abstract, authors } }`. `authors` lists the authors who aren't speakers. | 317 KB |
+| `materials.<hash>.json` | `{ "<id>": [{ title, url, kind, size }] }`: direct links to the public slides and posters on Indico. `kind` is `pdf`, `slides`, `video`, `image`, `link` or `file`. | 26 KB |
 
 - **Hashed files** never change, so clients can cache them for good. The previous version's
   files stay published next to the new ones.
+- **Materials are a separate file** because speakers upload all week. A new upload changes only
+  this file; the program file and `syncedAt` stay as they are.
+- **Attachment links:** protected attachments are left out. A file re-uploaded under the same
+  name keeps only its latest version. Indico resolves attachment links by attachment id, so a
+  file replaced in place keeps working at the old link. A deleted and re-added file gets a new
+  id: the site re-checks `index.json` when a contribution is opened, and always links the
+  contribution page too.
 - **Times** are ISO strings in the event's time zone (`tz`), even when Indico exports them in
   another zone. Slicing a time string gives the local wall-clock time.
 - **Posters** are contributions with `poster: true`. A contribution is a poster when it belongs

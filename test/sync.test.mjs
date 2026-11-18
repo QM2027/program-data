@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyOverrides, buildProgram, diffPrograms, msToZonedIso, shrinkReason, text, zonedToMs } from "../scripts/lib.mjs";
+import { applyOverrides, buildProgram, diffPrograms, materialsOf, msToZonedIso, shrinkReason, text, zonedToMs } from "../scripts/lib.mjs";
 
 const at = (date, time, tz = "Europe/Zurich") => ({ date, time, tz });
 
@@ -115,6 +115,36 @@ test("a program that suddenly shrinks is not published", () => {
   assert.match(shrinkReason(prev, { ...prev, contributions: prev.contributions.slice(0, 1), unscheduled: [] }), /contributions dropped/);
   assert.equal(shrinkReason(prev, prev), undefined);
   assert.equal(shrinkReason(undefined, empty), undefined);
+});
+
+test("materials: public direct links, latest of a re-upload, links and protected files", () => {
+  const file = (id, title, extra = {}) => ({ id, type: "file", title, download_url: `https://indico.cern.ch/a/${id}/${title}`, content_type: "application/pdf", size: 1000, ...extra });
+  const ev = {
+    folders: [
+      {
+        is_protected: false,
+        attachments: [
+          file(1, "poster.pdf", { modified_dt: "2027-03-20T10:00:00" }),
+          file(2, "poster.pdf", { modified_dt: "2027-03-21T10:00:00", size: 2000 }),
+          file(3, "slides.pptx", { content_type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }),
+          { id: 4, type: "link", title: "Google slides", download_url: "https://indico.cern.ch/a/4/go", link_url: "https://docs.google.com/x" },
+          file(5, "secret.pdf", { is_protected: true }),
+        ],
+      },
+      { is_protected: true, attachments: [file(6, "hidden.pdf")] },
+    ],
+  };
+  assert.deepEqual(materialsOf(ev), [
+    { title: "poster.pdf", url: "https://indico.cern.ch/a/2/poster.pdf", kind: "pdf", size: 2000 },
+    { title: "slides.pptx", url: "https://indico.cern.ch/a/3/slides.pptx", kind: "slides", size: 1000 },
+    { title: "Google slides", url: "https://docs.google.com/x", kind: "link", size: undefined },
+  ]);
+  assert.deepEqual(materialsOf(undefined), []);
+
+  const fx = fixture();
+  fx.contributions.find((c) => c.db_id === 200).folders = ev.folders;
+  const { materials } = buildProgram(fx);
+  assert.deepEqual(Object.keys(materials), ["200"]);
 });
 
 test("html entities and tags are stripped", () => {

@@ -214,6 +214,12 @@ export function buildProgram({ timetableDays, contributions: all, tz }) {
     if (abstract || authors.length) abstracts[c.id] = { abstract, authors: authors.length ? authors : undefined };
   }
 
+  const materials = {};
+  for (const c of [...contributions, ...unscheduled]) {
+    const files = materialsOf(evById.get(c.id));
+    if (files.length) materials[c.id] = files;
+  }
+
   return {
     program: {
       sessions: sessions.sort(byStart),
@@ -223,7 +229,40 @@ export function buildProgram({ timetableDays, contributions: all, tz }) {
       tracks,
     },
     abstracts,
+    materials,
   };
+}
+
+function kindOf(a) {
+  if (a.type === "link") return "link";
+  const t = a.content_type ?? "";
+  if (t === "application/pdf") return "pdf";
+  if (/presentation|powerpoint|keynote/.test(t)) return "slides";
+  if (t.startsWith("video/")) return "video";
+  if (t.startsWith("image/")) return "image";
+  return "file";
+}
+
+/**
+ * Public attachments as direct links: { title, url, kind, size? }. Protected ones are left out,
+ * since the link would only show a login page. A file uploaded twice under the same name
+ * keeps its latest version.
+ */
+export function materialsOf(ev) {
+  const byTitle = new Map();
+  for (const folder of ev?.folders ?? []) {
+    if (folder.is_protected) continue;
+    for (const a of folder.attachments ?? []) {
+      if (a.is_protected) continue;
+      const url = a.type === "link" ? a.link_url : a.download_url;
+      if (!url) continue;
+      const title = a.title || a.filename || "Attachment";
+      const old = byTitle.get(title);
+      if (old && (old.modified ?? "") > (a.modified_dt ?? "")) continue;
+      byTitle.set(title, { title, url, kind: kindOf(a), size: a.type === "link" ? undefined : a.size || undefined, modified: a.modified_dt });
+    }
+  }
+  return [...byTitle.values()].map(({ modified, ...m }) => m);
 }
 
 /** Shallow per-id patches: { "sessions": { "<id>": {...} }, "contributions": { "<id>": {...} } }. */
