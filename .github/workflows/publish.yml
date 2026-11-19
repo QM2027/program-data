@@ -5,6 +5,9 @@ name: Publish program data
 #
 #   push / manual run  → always publish (use "Run workflow" right after editing the timetable)
 #   schedule           → publish if the program changed, or hourly to refresh checkedAt
+#   dispatch with "scheduled" → same as schedule. An external cron (a Cloudflare Worker) sends it
+#                        hourly and every 5 minutes during the conference, because GitHub drops
+#                        many of its own scheduled runs. The schedule below stays as a fallback.
 # A sudden large drop in contributions is never published; a manual run with "force" overrides it.
 on:
   push:
@@ -13,6 +16,10 @@ on:
     inputs:
       force:
         description: Publish even if the program shrank a lot
+        type: boolean
+        default: false
+      scheduled:
+        description: Sent by the external cron; publish only if something changed
         type: boolean
         default: false
   schedule:
@@ -60,9 +67,10 @@ jobs:
       - id: decide
         env:
           EVENT: ${{ github.event_name }}
+          SCHEDULED: ${{ inputs.scheduled || false }}
           SYNC_PUBLISH: ${{ steps.sync.outputs.publish }}
         run: |
-          if [ "$EVENT" = schedule ] && [ "$SYNC_PUBLISH" != true ]; then
+          if { [ "$EVENT" = schedule ] || [ "$SCHEDULED" = true ]; } && [ "$SYNC_PUBLISH" != true ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
             echo "Nothing new to publish."
           else

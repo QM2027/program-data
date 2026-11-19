@@ -40,7 +40,9 @@ const outIdx = process.argv.indexOf("--out");
 const OUT = outIdx > 0 ? process.argv[outIdx + 1] : "site";
 const PREVIOUS_URL = process.env.PREVIOUS_URL?.replace(/\/$/, "");
 const FORCE = process.env.FORCE === "true";
-const HEARTBEAT_MS = 60 * 60_000;
+// Under the hourly trigger interval, so every hourly run refreshes checkedAt and it never ages
+// past the site's two-hour "stale" mark.
+const HEARTBEAT_MS = 50 * 60_000;
 const OVERRIDES = new URL("../overrides.json", import.meta.url);
 
 const warn = (msg) => console.warn(`::warning::sync: ${msg}`);
