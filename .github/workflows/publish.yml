@@ -4,10 +4,9 @@ name: Publish program data
 # https://qm2027.github.io/program-data/ (start at index.json). Nothing is committed.
 #
 #   push / manual run  → always publish (use "Run workflow" right after editing the timetable)
-#   schedule           → publish if the program changed, or hourly to refresh checkedAt
-#   dispatch with "scheduled" → same as schedule. An external cron (a Cloudflare Worker) sends it
-#                        hourly and every 5 minutes during the conference, because GitHub drops
-#                        many of its own scheduled runs. The schedule below stays as a fallback.
+#   dispatch with "scheduled" → publish if the program changed, or hourly to refresh checkedAt.
+#                        The qm2027-trigger Cloudflare Worker sends it every 10 minutes (every 5
+#                        during the conference). There is no GitHub schedule: it drops many runs.
 # A sudden large drop in contributions is never published; a manual run with "force" overrides it.
 on:
   push:
@@ -22,9 +21,6 @@ on:
         description: Sent by the external cron; publish only if something changed
         type: boolean
         default: false
-  schedule:
-    - cron: "23 */6 * * *"       # every 6 hours
-    - cron: "*/5 * 15-28 3 *"    # every 5 minutes around the conference (15–28 March)
 
 permissions:
   contents: read
@@ -66,11 +62,10 @@ jobs:
 
       - id: decide
         env:
-          EVENT: ${{ github.event_name }}
           SCHEDULED: ${{ inputs.scheduled || false }}
           SYNC_PUBLISH: ${{ steps.sync.outputs.publish }}
         run: |
-          if { [ "$EVENT" = schedule ] || [ "$SCHEDULED" = true ]; } && [ "$SYNC_PUBLISH" != true ]; then
+          if [ "$SCHEDULED" = true ] && [ "$SYNC_PUBLISH" != true ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
             echo "Nothing new to publish."
           else

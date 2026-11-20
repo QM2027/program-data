@@ -58,8 +58,7 @@ carried over.
 
 | Trigger | When | Publishes |
 | --- | --- | --- |
-| external cron (dispatch with `scheduled`) | hourly at :50, every 5 min on 15–28 March | if the program changed, or hourly to refresh `checkedAt` |
-| schedule (fallback) | every 6 h, every 5 min on 15–28 March | same as above |
+| Cloudflare Worker (dispatch with `scheduled`) | every 10 min, every 5 min on 15–28 March | if the program changed, or hourly to refresh `checkedAt` |
 | push to `main` | e.g. after editing `overrides.json` | always |
 | Actions → **Run workflow** | right after changing the timetable on Indico | always |
 
@@ -81,6 +80,7 @@ When something goes wrong, the published program stays as it is:
 
 GitHub's own scheduled runs start late and are often dropped, so a Cloudflare Worker cron
 triggers the workflow through the API (`workflow_dispatch` with `scheduled: true`) instead.
+There is no GitHub schedule in the workflow.
 
 ## Corrections
 
@@ -118,5 +118,3 @@ Running the sync again into the same folder uses that folder as the previous sna
 - **Workflow permissions:** can stay read-only.
 - **External cron:** a Cloudflare Worker dispatches this workflow with a fine-grained token
   (Actions: read and write on this repository). Renew the token before it expires.
-- **Scheduled workflows (fallback):** GitHub disables them after 60 days without repository
-  activity. Check the Actions tab before the conference.
